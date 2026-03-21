@@ -4,7 +4,9 @@
 
 一个背景透明的摸鱼阅读工具。
 
+<img src="./assets/image-20260321174302810.png" alt="image-20260321174302810" style="zoom: 67%;" />
 
+<img src="./assets/image-20260321174358047.png" alt="image-20260321174358047" style="zoom:67%;" />
 
 - 支持txt，epub，mobi，azw3等电子书格式
 - 支持RSS阅读
