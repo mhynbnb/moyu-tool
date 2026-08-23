@@ -10,6 +10,7 @@ from ebooklib import epub
 from bs4 import BeautifulSoup
 import json
 import svg
+import theme
 from svg import svg_to_icon
 import chardet  # 新增：用于检测 txt 编码
 import mobi
@@ -253,22 +254,15 @@ class EpubReader(QMainWindow):
         self.viewer.setMouseTracking(True)# 开启鼠标追踪
         self.viewer.viewport().setMouseTracking(True)# 开启 viewport 的鼠标追踪
 
-        # 浮动工具栏层 (平时隐藏)
+        # 浮动工具栏层 (平时隐藏) —— 深色玻璃拟态样式统一由 theme 提供
         self.toolbar = QFrame(self.container)
         self.toolbar.setObjectName("FloatingToolbar")
-        self.toolbar.setStyleSheet("""
-            #FloatingToolbar {
-                background-color: rgba(40, 40, 40, 230);
-                border-radius: 10px;
-                border: 0px solid #666;
-            }
-            QLabel, QPushButton, QComboBox {
-                color: white;
-            }
-        """)
+        self.toolbar.setStyleSheet(theme.toolbar_qss())
         self.toolbar.setFixedHeight(40)#固定尺寸
         self.toolbar.hide() # 初始隐藏
         tool_layout = QHBoxLayout(self.toolbar)# 工具栏内部布局
+        tool_layout.setContentsMargins(8, 6, 8, 6)
+        tool_layout.setSpacing(4)
 
         # 章节跳转下拉框
         self.chapter_selector = QComboBox()
@@ -276,14 +270,6 @@ class EpubReader(QMainWindow):
             self.chapter_selector.addItem(ch["title"])
         self.chapter_selector.currentIndexChanged.connect(self.load_chapter)# 绑定章节切换事件
         self.chapter_selector.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)# 根据内容调整宽度
-        self.chapter_selector.setStyleSheet("""
-            QComboBox {
-                combobox-popup: 0; /* 0 代表使用传统的弹出菜单风格，更容易受控 */
-            }
-            QComboBox QAbstractItemView {
-                min-width: 100px;
-            }
-        """)
         tool_layout.addWidget(self.chapter_selector)
         tool_layout.addStretch()# 添加弹性空间，使后续按钮靠右
         
@@ -302,7 +288,7 @@ class EpubReader(QMainWindow):
 
         # 字体调节按钮
         self.btn_font_toggle = QPushButton("")
-        fontsize_icon = svg_to_icon(svg.fontsizeBtn, size=QSize(20, 20), color="#000000")
+        fontsize_icon = svg_to_icon(svg.fontsizeBtn, size=QSize(20, 20), color=theme.COLORS["glass_text"])
         self.btn_font_toggle.setIcon(fontsize_icon)
         self.btn_font_toggle.setIconSize(QSize(20, 20))
         self.btn_font_toggle.setToolTip("左键增大 A+ / 右键减小 A-")
@@ -312,13 +298,13 @@ class EpubReader(QMainWindow):
         # 置顶按钮
         self.btnOnTop = QPushButton("")
         self.btnOnTop.setToolTip("点击置顶")
-        top_icon = svg_to_icon(svg.topBtn, size=QSize(20, 20), color="#000000")
+        top_icon = svg_to_icon(svg.topBtn, size=QSize(20, 20), color=theme.COLORS["glass_text"])
         self.btnOnTop.setIcon(top_icon)
         self.btnOnTop.setIconSize(QSize(20, 20))
         self.btnOnTop.clicked.connect(self.toggle_on_top)
 
         # 最小化按钮
-        close_icon = svg_to_icon(svg.minBtn, size=QSize(20, 20), color="#000000") # 将 SVG 转换为 QIcon，并设置颜色
+        close_icon = svg_to_icon(svg.minBtn, size=QSize(20, 20), color=theme.COLORS["glass_text"]) # 将 SVG 转换为 QIcon，并设置颜色
         self.btnClose = QPushButton("")
         self.btnClose.setIcon(close_icon)
         self.btnClose.setIconSize(QSize(20, 20))
@@ -327,7 +313,7 @@ class EpubReader(QMainWindow):
 
         # 保持窗口可见按钮
         self.btnKeepVisible = QPushButton("")
-        self.btnKeepVisible.setIcon(svg_to_icon(svg.showBtn, size=QSize(20, 20), color="#000000"))
+        self.btnKeepVisible.setIcon(svg_to_icon(svg.showBtn, size=QSize(20, 20), color=theme.COLORS["glass_text"]))
         self.btnKeepVisible.setIconSize(QSize(20, 20))
         self.btnKeepVisible.setToolTip("保持窗口可见")
         self.btnKeepVisible.clicked.connect(self.toggle_keep_visible)
@@ -335,41 +321,21 @@ class EpubReader(QMainWindow):
         self.btnToolbarList = [self.btnFontColorWhite,self.btnFontColorBlack, self.btn_font_toggle, self.btnOnTop, self.btnClose, self.btnKeepVisible]#工具栏按钮列表
 
         for btn in self.btnToolbarList:
-            btn.setFixedSize(20, 20)
+            btn.setFixedSize(24, 24)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setStyleSheet("""
-            QPushButton {
-                background-color: transparent;
-                padding: -5px;          /* 负值内边距可进一步压缩空间 */
-                margin: 0px;
-                border: none;
-                font-size: 10px;
-            }
-            QPushButton:hover {
-                background-color: #d8e3e7;  /* 悬停时变为浅灰色 */
-            }
-        """)
             tool_layout.addWidget(btn)
 
 
         # 进度百分比
-        self.progress_label = QLabel(" 0% ")
+        self.progress_label = QLabel("0%")
+        self.progress_label.setObjectName("ProgressPill")
         tool_layout.addWidget(self.progress_label)
         
-        # 创建托盘图标和菜单
+        # 创建托盘图标和菜单（菜单样式由全局样式表统一提供）
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(QIcon(svg_to_icon(svg.bookIcon, size=QSize(20, 20), color="#000000"))) # 请确保路径下有图标文件，否则托盘可能不显示
         self.tray_icon.setToolTip(f"正在阅读：{self.file_path.split('\\')[-1].split('.')[0]}")# 设置托盘提示文本为当前阅读的书籍名称
         self.tray_menu = QMenu()
-        self.tray_menu.setStyleSheet("""
-            QMenu {
-                font-size: 13px;    /* 设置菜单项字体大小 */
-            }
-            QMenu::item {
-                padding: 1px 1px; /* 增加间距让大字体看起来更协调 */
-                height: 10px;      /* 增加菜单项高度 */
-            }
-        """)
         
         self.exit_action = QAction("退出阅读", self)# 添加退出动作
         self.exit_action.triggered.connect(self.close)
@@ -393,20 +359,20 @@ class EpubReader(QMainWindow):
         """切换窗口保持可见状态，鼠标移出窗口范围时隐藏窗口"""
         if self.keep_visible:
             self.keep_visible = False
-            self.btnKeepVisible.setIcon(svg_to_icon(svg.hideBtn, size=QSize(20, 20), color="#000000"))
+            self.btnKeepVisible.setIcon(svg_to_icon(svg.hideBtn, size=QSize(20, 20), color=theme.COLORS["glass_text"]))
         else:
             self.keep_visible = True
-            self.btnKeepVisible.setIcon(svg_to_icon(svg.showBtn, size=QSize(20, 20), color="#000000"))
+            self.btnKeepVisible.setIcon(svg_to_icon(svg.showBtn, size=QSize(20, 20), color=theme.COLORS["glass_text"]))
     
     def toggle_on_top(self):
         """切换窗口置顶状态"""
         
         if self.windowFlags() & Qt.WindowType.WindowStaysOnTopHint:# 判断当前窗口是否已置顶
             self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowStaysOnTopHint)# 取消置顶
-            colorTmp="#7E7C7C"
+            colorTmp="#94A3B8"
         else:
             self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)# 设置置顶
-            colorTmp="#000000"
+            colorTmp="#F1F5F9"
         top_icon = svg_to_icon(svg.topBtn, size=QSize(20, 20), color=colorTmp)# 更新按钮样式以反映当前状态
         self.btnOnTop.setIcon(top_icon)
     
@@ -503,7 +469,7 @@ class EpubReader(QMainWindow):
                 if self.toolbar.isHidden():
                     # 保持工具栏高度一致
                     self.toolbar.setGeometry(40, 20, self.width() - 80, 40)
-                    self.toolbar.show()
+                    theme.fade_in(self.toolbar)  # 平滑淡入显示
                     self.toolbar.raise_()
             else:
                 if not self.toolbar.isHidden() and not self.toolbar.underMouse() and not self.chapter_selector.view().isVisible():
@@ -522,21 +488,10 @@ class EpubReader(QMainWindow):
 
     def show_custom_context_menu(self, global_pos):
         """自定义右键菜单：包含子菜单选择颜色"""
-        menu = QMenu(self)
-        menu.setStyleSheet("""
-            QMenu {
-                font-size: 13px;    /* 设置菜单项字体大小 */
-            }
-            QMenu::item {
-                padding: 1px 1px; /* 增加间距让大字体看起来更协调 */
-                height: 10px;      /* 增加菜单项高度 */
-                width: 30px;      /* 设置菜单项宽度 */
-            }
-        """)
+        menu = QMenu(self)  # 菜单样式由全局样式表统一提供
         # 创建“设置颜色”子菜单
         color_menu = QMenu("", menu)
         color_menu.setIcon(svg_to_icon(svg.fontcolorMenu, size=QSize(20, 20))) # 设置子菜单图标
-        color_menu.setStyleSheet(menu.styleSheet()) # 继承主菜单的 QSS
         colors = [
             ("🤍", "#FFFFFF"),#白
             ("🖤", "#000000"),# 黑色
@@ -557,7 +512,7 @@ class EpubReader(QMainWindow):
      
         # 添加退出按钮
         exic_action = QAction("", self)
-        exic_action.setIcon(svg_to_icon(svg.closeBtn, size=QSize(20, 20), color="#000000"))
+        exic_action.setIcon(svg_to_icon(svg.closeBtn, size=QSize(20, 20), color="#64748B"))
         exic_action.triggered.connect(self.close)
         menu.addAction(exic_action)
        
@@ -597,20 +552,7 @@ class EpubReader(QMainWindow):
         """设置白色字体"""
         """通过 CSS 渲染正文内容"""
         current_html = self.chapters[self.current_chapter_index]["content"]
-        style = f"""
-        <style>
-            body {{
-                font-size: {self.font_size}px;
-                line-height: 1.8;
-                padding: 50px 100px;
-                background-color: transparent;
-                font-family: '{self.font_family}', sans-serif;
-                color: {self.font_color};
-            }}
-            img {{ max-width: 100%; }}
-            h1, h2, h3 {{ color: {self.font_color}; text-align: center; }}
-        </style>
-        """
+        style = theme.reader_document_css(self.font_size, self.font_family, self.font_color)
         self.viewer.setHtml(style + current_html)
         self.viewer.verticalScrollBar().setValue(scroll_pos)
     def update_style(self):
@@ -618,20 +560,7 @@ class EpubReader(QMainWindow):
         scroll_pos = self.viewer.verticalScrollBar().value()
 
         current_html = self.chapters[self.current_chapter_index]["content"]
-        style = f"""
-        <style>
-            body {{
-                font-size: {self.font_size}px;
-                line-height: 1.8;
-                padding: 50px 100px;
-                background-color: transparent;
-                font-family: '{self.font_family}', sans-serif;
-                color: {self.font_color};
-            }}
-            img {{ max-width: 100%; }}
-            h1, h2, h3 {{ color: {self.font_color}; text-align: center; }}
-        </style>
-        """
+        style = theme.reader_document_css(self.font_size, self.font_family, self.font_color)
         self.viewer.setHtml(style + current_html)
         self.viewer.verticalScrollBar().setValue(scroll_pos)
 
@@ -696,7 +625,90 @@ class RSSLoaderThread(QThread):
             feed = feedparser.parse("https://www.ifanr.com/feed")
         self.finished.emit(feed)
 
-    
+
+def fetch_sspai_article_html(url):
+    """抓取少数派文章页面，提取正文 HTML 片段。
+
+    少数派官方 RSS(https://sspai.com/feed)只提供摘要 + "查看全文"链接，
+    不含 content:encoded 全文字段，所以需要在用户点击时按文章链接抓原文页面。
+
+    正文容器按文章类型分两种：
+    - 普通长文：单个 <div class="article__main__content wangEditor-txt">
+    - 派早报：多篇新闻条目，每条在 <div class="post__body__extend__item"> 内，
+      含 <h2 class="post__body__extend__item__title"> 标题 +
+      <div class="post__body__extend__item__content wangEditor-txt"> 正文。
+      早报的 article__main__content 容器里只有站点推广位，不是新闻正文，
+      必须改抓 post__body__extend__item 才能拿到完整内容。
+    """
+    import urllib.request
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/120.0.0.0 Safari/537.36",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        raw = resp.read()
+        if resp.headers.get("Content-Encoding", "").lower() == "gzip":
+            import gzip
+            raw = gzip.decompress(raw)
+        charset = resp.headers.get_content_charset() or "utf-8"
+        html = raw.decode(charset, errors="replace")
+
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, "html.parser")
+
+    # 1) 派早报类：抓取每条新闻条目（标题 + 正文），拼接成完整正文
+    extend_items = soup.find_all("div", class_="post__body__extend__item")
+    if extend_items:
+        parts = []
+        for item in extend_items:
+            title = item.find("h2", class_="post__body__extend__item__title")
+            content = item.find("div", class_="post__body__extend__item__content")
+            if content is None:
+                continue
+            # 清理脚本/样式/iframe
+            for tag in content.find_all(["script", "style", "iframe"]):
+                tag.decompose()
+            if title:
+                parts.append(f"<h2>{title.get_text(strip=True)}</h2>")
+            parts.append(content.decode_contents())
+        if parts:
+            return "".join(parts)
+
+    # 2) 普通长文类：抓 article__main__content
+    content_div = soup.find("div", class_="article__main__content")
+    if content_div is None:  # 兼容个别老模板
+        content_div = soup.find("div", class_="article-body") or soup.find("div", class_="slab")
+    if content_div is None:
+        return None
+    for tag in content_div.find_all(["script", "style", "iframe"]):
+        tag.decompose()
+    for a in content_div.find_all("a"):
+        if a.get_text(strip=True) in ("查看全文", "View Full Article", "查看原文"):
+            a.decompose()
+    return content_div.decode_contents()
+
+
+class ArticleLoaderThread(QThread):
+    """按需抓取单篇文章全文的异步线程（当前用于少数派，避免主线程卡顿）"""
+    loaded = pyqtSignal(str, object)  # (url, html_str_or_None)
+
+    def __init__(self, url):
+        super().__init__()
+        self.url = url
+
+    def run(self):
+        html = None
+        try:
+            html = fetch_sspai_article_html(self.url)
+        except Exception:
+            html = None  # 失败也回传 None，缓存后避免重复重试
+        self.loaded.emit(self.url, html)
+
+
 class RSSWindow(QWidget):
     def __init__(self, rssname=None):
         super().__init__()
@@ -720,6 +732,10 @@ class RSSWindow(QWidget):
 
         self._is_resizing = False
         self._is_dragging = False       # 新增：拖动状态锁
+        self._article_cache = {}        # 少数派全文缓存：{url: html_str_or_None}
+        self._article_thread = None     # 文章抓取线程引用
+        self._current_detail_entry = None  # 当前正在查看的条目
+        self._expected_url = ""         # 当前条目对应的 url 字符串（用于异步回调比对，避免 feedparser 属性访问的边角问题）
         
         self.check_timer = QTimer(self)
         self.check_timer.timeout.connect(self.monitor_mouse)
@@ -775,25 +791,18 @@ class RSSWindow(QWidget):
         self.viewer.viewport().setMouseTracking(True)# 开启 viewport 的鼠标追踪
 
         
-        # 浮动工具栏层 (平时隐藏)
+        # 浮动工具栏层 (平时隐藏) —— 深色玻璃拟态样式统一由 theme 提供
         self.toolbar = QFrame(self.stack)
         self.toolbar.setObjectName("FloatingToolbar")
-        self.toolbar.setStyleSheet("""
-            #FloatingToolbar {
-                background-color: rgba(40, 40, 40, 230);
-                border-radius: 10px;
-                border: 0px solid #666;
-            }
-            QLabel, QPushButton, QComboBox {
-                color: white;
-            }
-        """)
+        self.toolbar.setStyleSheet(theme.toolbar_qss())
         self.toolbar.setFixedHeight(40)                 # 固定尺寸
         self.toolbar.hide()                             # 初始隐藏
         tool_layout = QHBoxLayout(self.toolbar)         # 工具栏内部布局
+        tool_layout.setContentsMargins(8, 6, 8, 6)
+        tool_layout.setSpacing(4)
 
         self.btnBackToList = QPushButton("")                 # 返回列表按钮
-        self.btnBackToList.setIcon(svg_to_icon(svg.backBtn, size=QSize(20, 20), color="#000000"))
+        self.btnBackToList.setIcon(svg_to_icon(svg.backBtn, size=QSize(20, 20), color=theme.COLORS["glass_text"]))
         self.btnBackToList.setToolTip("返回列表")
         self.btnBackToList.clicked.connect(lambda: self.stack.setCurrentIndex(0))
         self.btnBackToList.setIconSize(QSize(20, 20))
@@ -811,7 +820,7 @@ class RSSWindow(QWidget):
 
         
         self.btn_font_toggle = QPushButton("")          # 字体大小调节按钮
-        self.btn_font_toggle.setIcon(svg_to_icon(svg.fontsizeBtn, size=QSize(20, 20), color="#000000"))
+        self.btn_font_toggle.setIcon(svg_to_icon(svg.fontsizeBtn, size=QSize(20, 20), color=theme.COLORS["glass_text"]))
         self.btn_font_toggle.setIconSize(QSize(20, 20))
         self.btn_font_toggle.setToolTip("左键增大 A+ / 右键减小 A-")
         self.btn_font_toggle.installEventFilter(self)
@@ -819,20 +828,20 @@ class RSSWindow(QWidget):
         
         self.btn_mouse_cross = QPushButton("")                 # 鼠标穿透按钮
         self.btn_mouse_cross.setToolTip("点击切换鼠标穿透")
-        self.btn_mouse_cross.setIcon(svg_to_icon(svg.mouseCrossBtn, size=QSize(20, 20), color="#000000"))
+        self.btn_mouse_cross.setIcon(svg_to_icon(svg.mouseCrossBtn, size=QSize(20, 20), color=theme.COLORS["glass_text"]))
         self.btn_mouse_cross.setIconSize(QSize(20, 20))
         self.btn_mouse_cross.clicked.connect(self.toggle_mouse_cross)
 
 
         self.btnOnTop = QPushButton("")                 # 置顶按钮
         self.btnOnTop.setToolTip("点击置顶")
-        top_icon = svg_to_icon(svg.topBtn, size=QSize(20, 20), color="#000000")
+        top_icon = svg_to_icon(svg.topBtn, size=QSize(20, 20), color=theme.COLORS["glass_text"])
         self.btnOnTop.setIcon(top_icon)
         self.btnOnTop.setIconSize(QSize(20, 20))
         self.btnOnTop.clicked.connect(self.toggle_on_top)
 
         # 最小化按钮
-        close_icon = svg_to_icon(svg.minBtn, size=QSize(20, 20), color="#000000") # 将 SVG 转换为 QIcon，并设置颜色
+        close_icon = svg_to_icon(svg.minBtn, size=QSize(20, 20), color=theme.COLORS["glass_text"]) # 将 SVG 转换为 QIcon，并设置颜色
         self.btnClose = QPushButton("")
         self.btnClose.setIcon(close_icon)
         self.btnClose.setIconSize(QSize(20, 20))
@@ -841,7 +850,7 @@ class RSSWindow(QWidget):
 
         # 保持窗口可见按钮
         self.btnKeepVisible = QPushButton("")
-        self.btnKeepVisible.setIcon(svg_to_icon(svg.showBtn, size=QSize(20, 20), color="#000000"))
+        self.btnKeepVisible.setIcon(svg_to_icon(svg.showBtn, size=QSize(20, 20), color=theme.COLORS["glass_text"]))
         self.btnKeepVisible.setIconSize(QSize(20, 20))
         self.btnKeepVisible.setToolTip("保持窗口可见")
         self.btnKeepVisible.clicked.connect(self.toggle_keep_visible)
@@ -849,35 +858,14 @@ class RSSWindow(QWidget):
         self.btnToolbarList = [self.btnBackToList,self.btnFontColorWhite,self.btnFontColorBlack, self.btn_font_toggle, self.btn_mouse_cross, self.btnOnTop, self.btnClose, self.btnKeepVisible]#工具栏按钮列表
 
         for btn in self.btnToolbarList:
-            btn.setFixedSize(20, 20)
+            btn.setFixedSize(24, 24)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setStyleSheet("""
-            QPushButton {
-                background-color: transparent;
-                padding: -5px;          /* 负值内边距可进一步压缩空间 */
-                margin: 0px;
-                border: none;
-                font-size: 10px;
-            }
-            QPushButton:hover {
-                background-color: #d8e3e7;  /* 悬停时变为浅灰色 */
-            }
-        """)
             tool_layout.addWidget(btn)
 
-        # 创建托盘图标和菜单
+        # 创建托盘图标和菜单（菜单样式由全局样式表统一提供）
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(QIcon(svg_to_icon(svg.bookIcon, size=QSize(20, 20), color="#000000"))) # 请确保路径下有图标文件，否则托盘可能不显示
         self.tray_menu = QMenu()
-        self.tray_menu.setStyleSheet("""
-            QMenu {
-                font-size: 13px;    /* 设置菜单项字体大小 */
-            }
-            QMenu::item {
-                padding: 1px 1px; /* 增加间距让大字体看起来更协调 */
-                height: 10px;      /* 增加菜单项高度 */
-            }
-        """)
         
         self.exit_action = QAction("退出阅读", self)# 添加退出动作
         self.exit_action.triggered.connect(self.close)
@@ -940,17 +928,94 @@ class RSSWindow(QWidget):
         return full_html
     
     def show_detail(self, item):
-        # 假设这是你获取到的 RSS 正文
+        """点击列表项，展示文章详情。少数派源走全文抓取分支。"""
         index = self.list_widget.row(item)      # 找到点击的文章
         entry = self.entries[index]
+
+        if self.rssname == "sspai":
+            self._show_sspai_detail(entry)
+            return
+
+        # 其他源：沿用原有解析逻辑（content/summary）
         raw_body = entry.content[0].value if hasattr(entry, 'content') else entry.summary
         standard_html = self.clean_zhihu_html(raw_body, entry.title)
 
         # 我们只保留正文标签，后续由 update_style 统一上色
-        self.current_raw_html = standard_html 
-        
+        self.current_raw_html = standard_html
+
         self.stack.setCurrentIndex(1)               # 切换到详情页
         self.viewer.verticalScrollBar().setValue(0) # 滚动到顶部
+        self.update_style()
+
+    # ---------- 少数派全文获取 ----------
+    # 少数派 RSS(https://sspai.com/feed)本身只提供摘要，不含全文。
+    # 因此点击后用 ArticleLoaderThread 异步抓取原文页面，
+    # 提取 <div class="article__main__content"> 中的完整正文。
+    def _show_sspai_detail(self, entry):
+        """少数派：RSS 只给摘要，需抓原文页面取全文。"""
+        url = getattr(entry, 'link', '')
+        self._current_detail_entry = entry
+        self._expected_url = url  # 用纯字符串比对，避免 feedparser 对象属性访问的边角问题
+
+        # 1) 命中缓存（含失败缓存，避免反复重试）→ 直接渲染
+        if url in self._article_cache:
+            cached = self._article_cache[url]
+            if cached:
+                self._render_sspai_article(entry, cached)               # 全文
+            else:
+                self._render_sspai_article(
+                    entry, entry.summary, note="全文加载失败，以下为摘要")  # 失败兜底
+            return
+
+        # 2) 先用摘要即时展示，避免界面空白（标题由 _render_sspai_article 统一包装）
+        self._render_sspai_article(entry, entry.summary, note="正在加载全文…")
+
+        # 3) 启动异步抓取
+        if not url:
+            return
+        # 复用线程引用，避免多个并发
+        if self._article_thread is not None and self._article_thread.isRunning():
+            self._article_thread.quit()
+            self._article_thread.wait(2000)
+        self._article_thread = ArticleLoaderThread(url)
+        self._article_thread.loaded.connect(self._on_article_loaded)
+        self._article_thread.start()
+
+    def _on_article_loaded(self, url, html):
+        """少数派文章全文抓取完成回调"""
+        self._article_cache[url] = html  # 失败也缓存 None，避免重复请求
+        # 用 _expected_url（纯字符串）做比对，比 feedparser 对象属性访问更可靠
+        if self._expected_url != url:
+            return  # 用户已切到其他文章，不覆盖
+        entry = self._current_detail_entry
+        if entry is None:
+            return
+        if html:
+            self._render_sspai_article(entry, html)                       # 全文已到
+        else:
+            self._render_sspai_article(
+                entry, entry.summary, note="全文加载失败，以下为摘要")    # 失败兜底
+
+    def _wrap_sspai_html(self, body_html, title, note=""):
+        """把正文片段包装为统一结构：标题 + 可选提示 + 正文（便于 update_style 复用）"""
+        note_block = f'<p class="sspai-note" style="color:#888;">{note}</p>' if note else ""
+        return f"""
+        <html>
+        <body>
+            <h3 class="chapter-title">{title}</h3>
+            {note_block}
+            <div class="rss-content">
+                {body_html}
+            </div>
+        </body>
+        </html>
+        """
+
+    def _render_sspai_article(self, entry, body_html, note=""):
+        """渲染少数派文章正文：统一包装标题+正文+提示，再交由 update_style 上色"""
+        self.current_raw_html = self._wrap_sspai_html(body_html, entry.title, note)
+        self.stack.setCurrentIndex(1)
+        self.viewer.verticalScrollBar().setValue(0)
         self.update_style()
 
     
@@ -968,20 +1033,20 @@ class RSSWindow(QWidget):
         """切换窗口保持可见状态，鼠标移出窗口范围时隐藏窗口"""
         if self.keep_visible:
             self.keep_visible = False
-            self.btnKeepVisible.setIcon(svg_to_icon(svg.hideBtn, size=QSize(20, 20), color="#000000"))
+            self.btnKeepVisible.setIcon(svg_to_icon(svg.hideBtn, size=QSize(20, 20), color=theme.COLORS["glass_text"]))
         else:
             self.keep_visible = True
-            self.btnKeepVisible.setIcon(svg_to_icon(svg.showBtn, size=QSize(20, 20), color="#000000"))
+            self.btnKeepVisible.setIcon(svg_to_icon(svg.showBtn, size=QSize(20, 20), color=theme.COLORS["glass_text"]))
     
     def toggle_on_top(self):
         """切换窗口置顶状态"""
         
         if self.windowFlags() & Qt.WindowType.WindowStaysOnTopHint:# 判断当前窗口是否已置顶
             self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowStaysOnTopHint)# 取消置顶
-            colorTmp="#7E7C7C"
+            colorTmp="#94A3B8"
         else:
             self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)# 设置置顶
-            colorTmp="#000000"
+            colorTmp="#F1F5F9"
         top_icon = svg_to_icon(svg.topBtn, size=QSize(20, 20), color=colorTmp)# 更新按钮样式以反映当前状态
         self.btnOnTop.setIcon(top_icon)
     
@@ -1070,7 +1135,7 @@ class RSSWindow(QWidget):
             if 0 <= mouse_pos.y() <= 40 and 0 <= mouse_pos.x() <= self.width():
                 if self.toolbar.isHidden():         # 如果鼠标在工具栏区域，且工具栏当前是隐藏的，则显示工具栏
                     self.toolbar.setGeometry(40, 20, self.width() - 80, 40)
-                    self.toolbar.show()
+                    theme.fade_in(self.toolbar)  # 平滑淡入显示
                     self.toolbar.raise_()
             else:
                 if not self.toolbar.isHidden() and not self.toolbar.underMouse():# 只有当工具栏没有被隐藏，且鼠标不在工具栏区域时，才隐藏
@@ -1085,21 +1150,10 @@ class RSSWindow(QWidget):
 
     def show_custom_context_menu(self, global_pos):
         """自定义右键菜单：包含子菜单选择颜色"""
-        menu = QMenu(self)
-        menu.setStyleSheet("""
-            QMenu {
-                font-size: 13px;    /* 设置菜单项字体大小 */
-            }
-            QMenu::item {
-                padding: 1px 1px; /* 增加间距让大字体看起来更协调 */
-                height: 10px;      /* 增加菜单项高度 */
-                width: 30px;      /* 设置菜单项宽度 */
-            }
-        """)
+        menu = QMenu(self)  # 菜单样式由全局样式表统一提供
         # 创建“设置颜色”子菜单
         color_menu = QMenu("", menu)
         color_menu.setIcon(svg_to_icon(svg.fontcolorMenu, size=QSize(20, 20))) # 设置子菜单图标
-        color_menu.setStyleSheet(menu.styleSheet()) # 继承主菜单的 QSS
         colors = [
             ("🤍", "#FFFFFF"),#白
             ("🖤", "#000000"),# 黑色
@@ -1120,7 +1174,7 @@ class RSSWindow(QWidget):
      
         # 添加退出按钮
         exic_action = QAction("", self)
-        exic_action.setIcon(svg_to_icon(svg.closeBtn, size=QSize(20, 20), color="#000000"))
+        exic_action.setIcon(svg_to_icon(svg.closeBtn, size=QSize(20, 20), color="#64748B"))
         exic_action.triggered.connect(self.close)
         menu.addAction(exic_action)
        
@@ -1145,24 +1199,10 @@ class RSSWindow(QWidget):
     def update_style(self):
         """通过 CSS 渲染正文内容"""
         if self.stack.currentIndex() == 0:
-            # print('更新列表样式')
-            self.list_widget.setStyleSheet(f"""
-                QListWidget {{ 
-                font-size: {self.font_size}px;background-color: rgba(255,255,255,{self.background_opacity}); color: {self.font_color};
-            }}
-                QListWidget::item {{ 
-                    background-color: rgba(255,255,255,{self.background_opacity}); color: {self.font_color};
-                    font-size: {self.font_size}px;
-                    padding-top: {self.font_size*0.1}px;
-                    padding-bottom: {self.font_size*0.1}px;
-                    padding-left: 15px;
-                    border-bottom: 1px solid rgba(255,255,255,{self.background_opacity+0.1});
-                }}
-                QListWidget::item:selected {{
-                    background-color: rgba(47, 144, 186, {self.background_opacity+0.1});
-                    color: #ffffff;
-                }}
-            """)
+            # 列表样式（保留透明度隐身语义）统一由 theme 提供
+            self.list_widget.setStyleSheet(
+                theme.reader_list_qss(self.font_size, self.background_opacity, self.font_color)
+            )
         else:
             scroll_pos = self.viewer.verticalScrollBar().value()
             content = getattr(self, 'current_raw_html', "")
@@ -1175,20 +1215,7 @@ class RSSWindow(QWidget):
             # 移除可能残余的图注标签
             content = re.sub(r'<figcaption[^>]*>.*?</figcaption>', '', content, flags=re.DOTALL)
             content = re.sub(r'<a[^>]*>(.*?)</a>', r'\1', content, flags=re.DOTALL)
-            style = f"""
-            <style>
-                body {{
-                    font-size: {self.font_size}px;
-                    line-height: 1.8;
-                    padding: 50px 100px;
-                    background-color: transparent;
-                    font-family: '{self.font_family}', sans-serif;
-                    color: {self.font_color};
-                }}
-                img {{ max-width: 100%; }}
-                h1, h2, h3 {{ color: {self.font_color}; text-align: center; }}
-            </style>
-            """
+            style = theme.reader_document_css(self.font_size, self.font_family, self.font_color)
             self.viewer.setHtml(style + content)
             # 延迟恢复滚动位置，防止渲染未完成导致失效
             QTimer.singleShot(1, lambda: self.viewer.verticalScrollBar().setValue(scroll_pos))
@@ -1206,10 +1233,15 @@ class RSSWindow(QWidget):
         if hasattr(self, 'check_timer'):
             self.check_timer.stop()
         
-        # 2. 停止线程
+        # 2. 停止 RSS 加载线程
         if hasattr(self, 'thread') and self.thread.isRunning():
-            self.thread.terminate() 
+            self.thread.terminate()
             self.thread.wait()
+
+        # 2.1 停少数派全文抓取线程（如有）
+        if getattr(self, '_article_thread', None) is not None and self._article_thread.isRunning():
+            self._article_thread.quit()
+            self._article_thread.wait(2000)
         
         # 3. 彻底销毁托盘（不仅仅是隐藏）
         self.tray_icon.setParent(None)

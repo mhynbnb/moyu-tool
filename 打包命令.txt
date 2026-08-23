@@ -1,0 +1,1 @@
+python -m nuitka --standalone --onefile --plugin-enable=pyqt6 --include-package=qt_material --include-package=ebooklib --include-package=bs4 --windows-disable-console --windows-icon-from-ico=.\res\icon.png --include-data-files=.\res\icon.png=.\res\icon.png --output-dir=dist main.py

@@ -1,13 +1,13 @@
 import sys
 import os
-from PyQt6.QtWidgets import (QApplication, QCheckBox, QMainWindow, QMenu, QSlider, QSystemTrayIcon, 
+from PyQt6.QtWidgets import (QApplication, QCheckBox, QColorDialog, QMainWindow, QMenu, QSlider, QSystemTrayIcon, 
                               QTabWidget, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
-                             QScrollArea, QFrame,QComboBox)
+                             QScrollArea, QFrame, QComboBox)
 from PyQt6.QtCore import  QSize,  Qt
-from PyQt6.QtGui import QAction,  QIcon, QPixmap
-from qt_material import QColor, QColorDialog, apply_stylesheet
+from PyQt6.QtGui import QAction, QColor, QIcon, QPixmap
 import json
 import svg
+import theme
 from svg import svg_to_icon
 from reader import EpubReader, RSSWindow
 
@@ -23,32 +23,25 @@ class MainWindow(QMainWindow):
                 self.setting_data = json.load(f)
         else:
             self.setting_data = {}
-        self.resize(550, 700)
+        self.resize(560, 720)
+        self.setMinimumSize(430, 560)  # 响应式：保证小窗口 / 小屏下布局不破碎
+        self.setWindowIcon(QIcon(svg_to_icon(svg.fishIcon, size=QSize(20, 20), color=theme.COLORS["primary"])))
         self.init_ui()
         self.refresh_books()
         
     def init_ui(self):
-        self.tabs = QTabWidget()
+        self.tabs = QTabWidget()  # 标签页样式（居中、圆角胶囊选中态）由全局样式表统一提供
         
-        # 1. 通过 QSS 实现标签居中
-        self.tabs.setStyleSheet("""
-            QTabBar {
-                alignment: center; /* 核心：居中对齐 */
-            }
-            QTabBar::tab {
-                min-width: 80px;  /* 增加点击区域宽度 */
-                font-size: 20px;
-                padding: 8px;
-            }
-        """)
-
         # --- 书架标签页 ---
         self.bookshelf_tab = QWidget()
         self.bookshelf_layout = QVBoxLayout()
+        self.bookshelf_layout.setContentsMargins(16, 16, 16, 16)  # 统一页边距
+        self.bookshelf_layout.setSpacing(12)
         
         top_bar = QHBoxLayout()
+        top_bar.setSpacing(12)
         title_label = QLabel("📚 我的藏书")
-        title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        title_label.setObjectName("PageTitle")
         
         self.refresh_btn = QPushButton("🔄 刷新列表")
         self.refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -64,6 +57,8 @@ class MainWindow(QMainWindow):
         self.list_container = QWidget()
         self.list_layout = QVBoxLayout(self.list_container)
         self.list_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.list_layout.setSpacing(8)                      # 卡片间距统一 8px
+        self.list_layout.setContentsMargins(4, 4, 4, 8)
         self.scroll.setWidget(self.list_container)
 
         self.bookshelf_layout.addLayout(top_bar)
@@ -72,22 +67,26 @@ class MainWindow(QMainWindow):
 
         # --- 设置标签页 ---
         self.settings_tab = QWidget()
-        self.settings_tab.setStyleSheet("font-family: Simhei; font-size: 15px;background-color: transparent;")
-        # (这里可以保持你之前的布局)
         self.settings_main_layout = QVBoxLayout(self.settings_tab)
-
+        self.settings_main_layout.setContentsMargins(16, 16, 16, 16)
+        self.settings_main_layout.setSpacing(12)
         self.settings_main_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        # 界面外观组
+        # 界面外观组（卡片）
         self.appearance_group = QFrame()
+        self.appearance_group.setObjectName("Card")
         self.appearance_layout = QVBoxLayout(self.appearance_group)
+        self.appearance_layout.setContentsMargins(16, 14, 16, 16)
+        self.appearance_layout.setSpacing(14)
+        theme.apply_shadow(self.appearance_group)
         
         appearance_title = QLabel("🎨 界面外观")
-        appearance_title.setStyleSheet("color: #2f90ba;")
+        appearance_title.setObjectName("CardTitle")
         self.appearance_layout.addWidget(appearance_title)
 
         # 透明度设置
         opacity_layout = QHBoxLayout()
+        opacity_layout.setSpacing(12)
         opacity_label = QLabel("背景透明度")
 
         self.opacity_slider = QSlider(Qt.Orientation.Horizontal)
@@ -101,6 +100,7 @@ class MainWindow(QMainWindow):
 
         # 开关设置 关闭阅读窗口后打开主界面
         self.topmost_layout = QHBoxLayout()
+        self.topmost_layout.setSpacing(12)
         self.topmost_label = QLabel("关闭阅读窗口后打开主界面")
         
         self.topmost_check = QCheckBox()
@@ -114,31 +114,38 @@ class MainWindow(QMainWindow):
         self.appearance_layout.addLayout(self.topmost_layout)
 
 
-        # 文本阅读组
+        # 文本阅读组（卡片）
         text_group = QFrame()
+        text_group.setObjectName("Card")
         text_layout = QVBoxLayout(text_group)
+        text_layout.setContentsMargins(16, 14, 16, 16)
+        text_layout.setSpacing(14)
+        theme.apply_shadow(text_group)
         
         text_title = QLabel("📖 阅读偏好")
-        text_title.setStyleSheet("color: #2f90ba;")
+        text_title.setObjectName("CardTitle")
         text_layout.addWidget(text_title)
 
         # 字体选择
         font_layout = QHBoxLayout()
+        font_layout.setSpacing(12)
         font_label = QLabel("字体")
         self.font_combo = QComboBox()
         self.font_combo.addItems(["SimHei", "SimSun", "KaiTi"])
         self.font_combo.setCurrentText(self.setting_data.get("font", "SimHei"))
-        self.font_combo.currentTextChanged.connect(self.update_font_setting) # 留空
+        self.font_combo.currentTextChanged.connect(self.update_font_setting)
         font_layout.addWidget(font_label)
         font_layout.addWidget(self.font_combo)
         text_layout.addLayout(font_layout)
 
         # 字号设置
         fontsize_layout = QHBoxLayout()
+        fontsize_layout.setSpacing(12)
         fontsize_label = QLabel("字号")
-        # --- 新增：用于显示具体数值的标签 ---
+        # --- 用于显示具体数值的标签 ---
         self.fontsize_value_label = QLabel(str(self.setting_data.get("font_size", 16)))
-        self.fontsize_value_label.setFixedWidth(20) # 固定宽度防止数值变动时布局抖动
+        self.fontsize_value_label.setObjectName("Muted")
+        self.fontsize_value_label.setFixedWidth(24) # 固定宽度防止数值变动时布局抖动
         self.fontsize_slider = QSlider(Qt.Orientation.Horizontal)
         self.fontsize_slider.setRange(10, 30)
         self.fontsize_slider.setValue(self.setting_data.get("font_size", 16))
@@ -152,35 +159,47 @@ class MainWindow(QMainWindow):
 
         # --- 字体颜色设置布局 ---
         fontcolor_layout = QHBoxLayout()
+        fontcolor_layout.setSpacing(12)
         fontcolor_label = QLabel("颜色")
         # 创建一个显示当前颜色的方块按钮
         self.color_button = QPushButton()
-        self.color_button.setFixedWidth(40)
-        self.color_button.setFixedHeight(20)
+        self.color_button.setFixedSize(44, 26)
+        self.color_button.setCursor(Qt.CursorShape.PointingHandCursor)
         # 初始化按钮背景色为当前字体颜色
-        self.color_button.setStyleSheet(f"background-color: {self.setting_data.get('font_color', '#000')}; border: 1px solid #666;")
+        self.color_button.setStyleSheet(
+            f"background-color: {self.setting_data.get('font_color', '#000')};"
+            f"border: 1px solid {theme.COLORS['border_strong']}; border-radius: 6px;"
+        )
         self.color_button.clicked.connect(self.open_color_dialog)
 
         fontcolor_layout.addWidget(fontcolor_label)
         fontcolor_layout.addStretch() # 让标签和按钮分开
         fontcolor_layout.addWidget(self.color_button)
-        # 增加一个弹簧，让颜色按钮靠左对齐，或者随你喜好排列
         text_layout.addLayout(fontcolor_layout)
 
 
-        # 3. 快捷键组 (占位)
+        # 3. 快捷键组（占位，卡片 + 辅助色徽标）
         hotkey_group = QFrame()
-        hotkey_group.setStyleSheet("background-color: rgba(255,255,255,0.03); border-radius: 10px;")
+        hotkey_group.setObjectName("Card")
+        theme.apply_shadow(hotkey_group)
         hotkey_layout = QVBoxLayout(hotkey_group)
-        hotkey_title = QLabel("⌨️ 快捷键设置 (敬请期待)")
-        hotkey_title.setStyleSheet("color: #888;background-color: transparent;")
-        hotkey_layout.addWidget(hotkey_title)
+        hotkey_layout.setContentsMargins(16, 14, 16, 14)
+        hotkey_layout.setSpacing(8)
+
+        hotkey_header = QHBoxLayout()
+        hotkey_title = QLabel("⌨️ 快捷键设置")
+        hotkey_title.setObjectName("CardTitle")
+        hotkey_badge = QLabel("敬请期待")
+        hotkey_badge.setObjectName("Badge")
+        hotkey_header.addWidget(hotkey_title)
+        hotkey_header.addSpacing(8)
+        hotkey_header.addWidget(hotkey_badge)
+        hotkey_header.addStretch()
+        hotkey_layout.addLayout(hotkey_header)
 
         # 将所有组添加到主布局
         self.settings_main_layout.addWidget(self.appearance_group)
-        self.settings_main_layout.addSpacing(10)
         self.settings_main_layout.addWidget(text_group)
-        self.settings_main_layout.addSpacing(10)
         self.settings_main_layout.addWidget(hotkey_group)
         self.settings_main_layout.addStretch()
 
@@ -189,20 +208,10 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.settings_tab, "设置")
         self.setCentralWidget(self.tabs)
 
-        # 创建托盘图标和菜单
+        # 创建托盘图标和菜单（菜单样式由全局样式表统一提供）
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QIcon(svg_to_icon(svg.fishIcon, size=QSize(20, 20), color="#000000"))) # 请确保路径下有图标文件，否则托盘可能不显示
+        self.tray_icon.setIcon(QIcon(svg_to_icon(svg.fishIcon, size=QSize(20, 20), color=theme.COLORS["primary"]))) # 请确保路径下有图标文件，否则托盘可能不显示
         self.tray_menu = QMenu()
-        # 设置整个托盘菜单的字体大小
-        self.tray_menu.setStyleSheet("""
-            QMenu {
-                font-size: 13px;    /* 设置菜单项字体大小 */
-            }
-            QMenu::item {
-                padding: 1px 1px; /* 增加间距让大字体看起来更协调 */
-                height: 10px;      /* 增加菜单项高度 */
-            }
-        """)
         
         self.show_action = QAction("显示主界面", self)# 添加“显示”动作
         self.show_action.triggered.connect(self.show)   
@@ -228,7 +237,10 @@ class MainWindow(QMainWindow):
             # 将 QColor 对象转换为十六进制字符串 (例如 #ffffff)
             self.font_color = color.name()
             # 1. 更新按钮本身的颜色预览
-            self.color_button.setStyleSheet(f"background-color: {self.font_color}; border: 1px solid #666;")
+            self.color_button.setStyleSheet(
+                f"background-color: {self.font_color};"
+                f"border: 1px solid {theme.COLORS['border_strong']}; border-radius: 6px;"
+            )
             self.setting_data["font_color"] = self.font_color
             with open("configs/setting.json", 'w', encoding='utf-8') as f:
                 json.dump(self.setting_data, f)
@@ -282,10 +294,11 @@ class MainWindow(QMainWindow):
     def add_book_item(self, file_name,rss=False):
         if not rss:
             item_frame = QFrame()
-            item_frame.setObjectName("BookItem")
-            item_frame.setStyleSheet("#BookItem { border-radius: 8px; padding: 5px; }")
+            item_frame.setObjectName("BookItem")  # 卡片样式（含悬停态）由全局样式表提供
+            item_frame.setCursor(Qt.CursorShape.PointingHandCursor)
             
             item_layout = QHBoxLayout(item_frame)
+            item_layout.setSpacing(12)
             
             icon = "📄"
             if file_name.endswith('.txt'): icon = "📝"
@@ -293,7 +306,7 @@ class MainWindow(QMainWindow):
             else: icon = "📄"
                 
             name_label = QLabel(f"{icon} {file_name}")
-            name_label.setStyleSheet("font-size: 14px;")
+            name_label.setObjectName("BookName")
             
             # 获取该书的进度
             progress_text = "未开始"
@@ -314,11 +327,12 @@ class MainWindow(QMainWindow):
                     pass
 
             progress_label = QLabel(progress_text)
-            progress_label.setStyleSheet("color: #888; font-size: 12px; margin-right: 15px;")
+            progress_label.setObjectName("Muted")
 
             read_btn = QPushButton("阅读")# 创建阅读按钮
-            read_btn.setProperty('class', 'success') # 使用主题内置的绿色样式
-            read_btn.setFixedWidth(80)
+            read_btn.setProperty('class', 'primary') # 主操作按钮（实心主色）
+            read_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            read_btn.setFixedWidth(76)
             full_path = os.path.join("books", file_name)
             read_btn.clicked.connect(lambda ch, p=full_path: self.open_reader(p))
             
@@ -331,8 +345,9 @@ class MainWindow(QMainWindow):
         else:
             item_frame = QFrame()
             item_frame.setObjectName("BookItem")
-            item_frame.setStyleSheet("#BookItem {  border-radius: 8px; padding: 5px; }")
+            item_frame.setCursor(Qt.CursorShape.PointingHandCursor)
             item_layout = QHBoxLayout(item_frame)
+            item_layout.setSpacing(12)
 
             # 创建一个容器，用于放置图标和文字
             icon_text_container = QWidget()
@@ -354,13 +369,15 @@ class MainWindow(QMainWindow):
             elif file_name == "爱范儿":
                 icon_label.setPixmap(svg_to_icon(svg.ifanrIcon, size=QSize(18, 18)).pixmap(QSize(24, 24)))
                 text_label = QLabel(" 爱范儿")
+            text_label.setObjectName("BookName")
             layout.addWidget(icon_label)
             layout.addWidget(text_label)
             layout.addStretch()
                 
             read_btn = QPushButton("阅读")              # 创建阅读按钮
-            read_btn.setProperty('class', 'success')    # 使用主题内置的绿色样式
-            read_btn.setFixedWidth(80)
+            read_btn.setProperty('class', 'primary')    # 主操作按钮（实心主色）
+            read_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            read_btn.setFixedWidth(76)
             if file_name == "知乎日报":
                 read_btn.clicked.connect(lambda: self.open_rss_window("zhihu_daily"))
             elif file_name == "IT之家":
@@ -401,7 +418,8 @@ if __name__ == "__main__":
     import ctypes
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("my_unique_reading_tool_v1")
     app = QApplication(sys.argv)
-    apply_stylesheet(app, theme='dark_teal.xml')
+    theme.set_app_font(app)                 # 统一 UI 字体（含回退链）
+    app.setStyleSheet(theme.build_stylesheet())  # 应用现代化全局样式（替代 qt_material）
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
