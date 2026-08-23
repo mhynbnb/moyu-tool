@@ -1,0 +1,14 @@
+# WorkBuddy
+.workbuddy/
+
+# VS Code
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+
+# PyInstaller
+build/
+dist/
+*.spec
